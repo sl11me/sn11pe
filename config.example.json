@@ -1,0 +1,15 @@
+{
+  "wallets": [
+    "REMPLACE_PAR_ADRESSE_WALLET_1",
+    "REMPLACE_PAR_ADRESSE_WALLET_2"
+  ],
+  "buy_sol": 0.05,
+  "max_positions": 5,
+  "slippage_bps": 1500,
+  "take_profit": 2.0,
+  "stop_loss": 0.6,
+  "max_hold_min": 240,
+  "min_trades_to_judge": 5,
+  "min_winrate": 0.4,
+  "poll_seconds": 10
+}
