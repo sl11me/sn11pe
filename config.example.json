@@ -11,5 +11,8 @@
   "max_hold_min": 240,
   "min_trades_to_judge": 5,
   "min_winrate": 0.4,
+  "successor_min_sol": 0.5,
+  "successor_min_share": 0.5,
+  "successor_max_age_days": 7,
   "poll_seconds": 10
 }

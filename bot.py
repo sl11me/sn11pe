@@ -3,7 +3,7 @@
 Boucle : surveille les wallets "leaders" -> détecte leurs achats/ventes -> copie via Jupiter.
 Paper trading par défaut (LIVE=1 pour de vrais ordres). Tableau de bord sur http://localhost:8081.
 """
-import base64, json, os, sys, threading, time, urllib.request
+import base64, json, os, socketserver, sys, threading, time, urllib.request
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -85,6 +85,59 @@ def parse_swaps(tx, wallet):
     return out
 
 
+# ---------- changement d'adresse : le leader vide son wallet vers un neuf ----------
+
+def parse_transfers(tx, wallet):
+    """Virements SOL sortants du wallet : [(destination, lamports, solde_avant)]."""
+    meta = tx and tx.get("meta")
+    if not meta or meta.get("err"):
+        return []
+    msg = tx["transaction"]["message"]
+    keys = [k["pubkey"] if isinstance(k, dict) else k for k in msg["accountKeys"]]
+    if wallet not in keys:
+        return []
+    ixs = list(msg.get("instructions") or [])
+    for inner in meta.get("innerInstructions") or []:
+        ixs += inner.get("instructions") or []
+    sent = {}
+    for ix in ixs:
+        p = ix.get("parsed")
+        if ix.get("program") == "system" and isinstance(p, dict) and p.get("type") == "transfer" and p["info"]["source"] == wallet:
+            dest = p["info"]["destination"]
+            sent[dest] = sent.get(dest, 0) + int(p["info"]["lamports"])
+    pre = meta["preBalances"][keys.index(wallet)]
+    return [(d, lamports, pre) for d, lamports in sent.items() if d != wallet]
+
+
+def is_successor_transfer(lamports, pre_balance, cfg):
+    """Gros virement = la majorité du solde, et au moins un montant minimum (pas un simple paiement)."""
+    return lamports >= cfg.get("successor_min_sol", 0.5) * 1e9 and lamports >= cfg.get("successor_min_share", 0.5) * pre_balance
+
+
+def is_fresh(address, max_age_days):
+    # shortcut: un historique de 100 tx ou plus = wallet ancien ; suffisant pour repérer un wallet neuf
+    sigs = rpc("getSignaturesForAddress", address, {"limit": 100})
+    if len(sigs) >= 100:
+        return False
+    oldest = sigs[-1].get("blockTime") if sigs else time.time()
+    return time.time() - (oldest or 0) <= max_age_days * 86400
+
+
+def check_successors(state, cfg, wallet, tx, sig):
+    for dest, lamports, pre in parse_transfers(tx, wallet):
+        if dest in cfg["wallets"] or dest in state["candidates"] or not is_successor_transfer(lamports, pre, cfg):
+            continue
+        try:
+            if not is_fresh(dest, cfg.get("successor_max_age_days", 7)):
+                continue
+        except Exception as e:
+            log(f"[err] âge de {dest[:6]}: {e}")
+            continue
+        state["candidates"][dest] = {"from": wallet, "lamports": lamports, "share": lamports / pre if pre else 1,
+                                     "at": time.time(), "sig": sig, "signals": 0}
+        log(f"[succ] {wallet[:6]} a envoyé {lamports / 1e9:.2f} SOL vers un wallet neuf {dest} : successeur probable, observé sans copie")
+
+
 # ---------- auto-apprentissage : score des wallets ----------
 
 def wallet_stats(trades, wallet):
@@ -164,7 +217,8 @@ def check_exits(state, cfg):
             sell(state, cfg, mint, f"timeout x{ratio:.2f}")
 
 
-def poll_wallet(state, cfg, wallet):
+def poll_wallet(state, cfg, wallet, watch=False):
+    """watch=True : successeur probable, on note ses signaux sans jamais copier."""
     last = state["last_sig"].get(wallet)
     sigs = rpc("getSignaturesForAddress", wallet, {"limit": 20, **({"until": last} if last else {})})
     if not sigs:
@@ -176,9 +230,13 @@ def poll_wallet(state, cfg, wallet):
         if s.get("err"):
             continue
         tx = rpc("getTransaction", s["signature"], {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0})
+        check_successors(state, cfg, wallet, tx, s["signature"])
         for side, mint in parse_swaps(tx, wallet):
             try:
-                if side == "buy":
+                if watch:
+                    state["candidates"][wallet]["signals"] += 1
+                    decision = "observé"
+                elif side == "buy":
                     decision = buy(state, cfg, wallet, mint)
                 elif mint in state["positions"] and state["positions"][mint]["wallet"] == wallet:
                     sell(state, cfg, mint, "leader_sold")
@@ -206,6 +264,7 @@ def publish(state, cfg, sol_usd):
     snapshot = json.dumps({
         "now": time.time(), "startedAt": STARTED, "mode": "live" if LIVE else "paper", "solUsd": sol_usd, "rules": cfg,
         "wallets": wallets, "events": list(EVENTS), "logs": list(LOGS),
+        "candidates": [{"wallet": w, **c} for w, c in state["candidates"].items() if w not in cfg["wallets"]],
         "open": [{"mint": m, "symbol": p.get("symbol", ""), "wallet": p["wallet"], "cost": p["sol_in"] / 1e9,
                   "value": p.get("value", p["sol_in"]) / 1e9, "peak": p.get("peak", p["sol_in"]) / 1e9, "opened": p["opened"]}
                  for m, p in state["positions"].items()],
@@ -229,11 +288,19 @@ class Page(BaseHTTPRequestHandler):
         pass
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def server_bind(self):  # évite getfqdn() de HTTPServer : résolution DNS inverse qui peut bloquer le démarrage
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "localhost", self.server_address[1]
+
+
 def start_dashboard():
     if not DASHBOARD_PORT:
         return
     try:  # 127.0.0.1 seulement : sur un VPS, passer par ssh -L
-        server = ThreadingHTTPServer(("127.0.0.1", DASHBOARD_PORT), Page)
+        server = Server(("127.0.0.1", DASHBOARD_PORT), Page)
     except OSError as e:
         return log(f"[err] tableau de bord indisponible : {e}")
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -251,9 +318,12 @@ def log(msg):
 def load_state():
     try:
         with open(STATE_FILE) as f:
-            return json.load(f)
+            state = json.load(f)
     except FileNotFoundError:
-        return {"positions": {}, "trades": [], "last_sig": {}}
+        state = {}
+    for k, v in (("positions", {}), ("trades", []), ("last_sig", {}), ("candidates", {})):
+        state.setdefault(k, v)
+    return state
 
 
 def save_state(state):
@@ -271,8 +341,13 @@ def report(state, cfg):
 
 
 def main():
-    with open("config.json") as f:
-        cfg = json.load(f)
+    try:
+        with open("config.json") as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        sys.exit("config.json manquant : cp config.example.json config.json, puis mets-y les adresses des wallets à copier")
+    if any(w.startswith("REMPLACE") for w in cfg["wallets"]):
+        sys.exit("config.json : remplace les adresses d'exemple par les wallets à copier")
     state = load_state()
     if sys.argv[1:] == ["report"]:
         return report(state, cfg)
@@ -290,6 +365,11 @@ def main():
             except Exception as e:
                 log(f"[err] poll {w[:6]}: {e}")
             publish(state, cfg, sol_usd)
+        for w in [c for c in state["candidates"] if c not in cfg["wallets"]]:
+            try:
+                poll_wallet(state, cfg, w, watch=True)
+            except Exception as e:
+                log(f"[err] poll successeur {w[:6]}: {e}")
         check_exits(state, cfg)
         save_state(state)
         publish(state, cfg, sol_usd)

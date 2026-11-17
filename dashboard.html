@@ -218,6 +218,10 @@
     <section class="card"><h2>Classement des wallets <span class="hint" id="walletsHint"></span></h2><div class="tablewrap" id="wallets"></div></section>
     <section class="card"><h2>Règles actives</h2><div class="rules" id="rules"></div></section>
   </div>
+  <section class="card" data-view="wallets" style="margin-top:16px">
+    <h2>Successeurs probables <span class="hint" id="candHint"></span></h2>
+    <div class="tablewrap" id="candidates"></div>
+  </section>
 
   <!-- Positions et trades -->
   <div class="stackv" data-view="trades">
@@ -275,6 +279,7 @@ const EXPLAIN = {
   "capacité max": ["Toutes les places prises", "Le nombre maximum de positions ouvertes est atteint."],
   "wallet désactivé": ["Wallet coupé", "Ce wallet nous a fait perdre sur ses trades copiés : ses signaux sont ignorés."],
   "pas de position": ["Vente non suivie", "Le leader vend un token qu'on n'a pas copié."],
+  "observé": ["Successeur observé", "Wallet neuf financé par un leader : son trade est noté, jamais copié tant qu'il n'est pas dans config.json."],
 };
 const EXITS = [
   [/^leader_sold/, "Leader a vendu", "var(--blue)"], [/^take_profit/, "Take profit", "var(--green)"],
@@ -374,6 +379,17 @@ function render(s) {
       <td class="r num">${w.trades ? `${Math.round(w.winrate * 100)} %` : '<span class="dim">—</span>'}</td>
       <td class="r num"><b>${signed(w.pnl, 4)}</b> SOL<span class="usd">${solUsd(w.pnl)}</span></td>
       <td class="r num">${w.open}</td><td class="r num muted">${w.lastSignal ? `il y a ${ago(s.now - w.lastSignal)}` : "—"}</td></tr>`), "Ajoute des wallets dans config.json.");
+  // Successeurs probables : wallet neuf qui a reçu la majorité des SOL d'un leader
+  const cands = [...(s.candidates ?? [])].sort((a, b) => b.at - a.at);
+  $("candHint").textContent = cands.length ? `${cands.length} à valider` : "";
+  $("candidates").innerHTML = table(["#", "Nouveau wallet", "Financé par", "Montant ", "Part du solde ", "Signaux observés ", "Détecté ", ""], cands.map((c, i) =>
+    `<tr><td class="c-rank num">${i + 1}</td><td>${wallet(c.wallet)}</td><td>${wallet(c.from)}</td>
+      <td class="r num">${fmt(c.lamports / 1e9, 2)} SOL<span class="usd">${solUsd(c.lamports / 1e9)}</span></td>
+      <td class="r num">${Math.round(c.share * 100)} %</td><td class="r num">${c.signals}</td>
+      <td class="r num muted">il y a ${ago(s.now - c.at)}<a class="usd" href="https://solscan.io/tx/${encodeURIComponent(c.sig)}" target="_blank" rel="noopener noreferrer">virement ↗</a></td>
+      <td><button class="seg" data-copy="${esc(c.wallet)}" title="Copier l'adresse pour l'ajouter dans config.json">Copier l'adresse</button></td></tr>`),
+    "Aucun pour l'instant. Quand un wallet suivi envoie la majorité de ses SOL vers un wallet neuf, il apparaît ici. Pour le copier, ajoute son adresse dans config.json.");
+
   const rule = (k, v) => `<div>${k} <b class="num">${v}</b></div>`;
   $("rules").innerHTML = [
     rule("Mise par copie", `${r.buy_sol} SOL`), rule("Positions max", r.max_positions), rule("Slippage max", `${r.slippage_bps / 100} %`),
@@ -447,6 +463,11 @@ $("filters").addEventListener("click", (e) => {
   filter = b.dataset.f;
   $("filters").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
   if (last) render(last);
+});
+$("candidates").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-copy]");
+  if (!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copiée ✓"; } catch { b.textContent = b.dataset.copy; }
 });
 $("q").addEventListener("input", (e) => {
   query = e.target.value;

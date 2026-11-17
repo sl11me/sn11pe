@@ -38,6 +38,13 @@ Chaque trade clôturé est enregistré dans `state.json`. Après `min_trades_to_
 il est désactivé si son PnL (pour nous, frais et slippage compris) est négatif ou son winrate < `min_winrate`.
 `python3 bot.py report` montre le classement.
 
+## Wallets qui changent d'adresse
+
+Quand un wallet suivi envoie la majorité de son solde (`successor_min_share`, au moins `successor_min_sol` SOL)
+vers un wallet de moins de `successor_max_age_days` jours, le bot le note comme **successeur probable** :
+il apparaît dans l'onglet Wallets suivis du tableau de bord et ses trades sont observés, **jamais copiés**.
+Pour le copier, ajoute son adresse dans `config.json`. Un passage par un exchange (dépôt puis retrait) casse ce lien.
+
 ## Config (`config.json`)
 
 | Clé | Rôle |
@@ -48,3 +55,4 @@ il est désactivé si son PnL (pour nous, frais et slippage compris) est négati
 | `take_profit` / `stop_loss` | multiplicateurs de sortie (2.0 = x2, 0.6 = -40 %) |
 | `max_hold_min` | durée max d'une position |
 | `poll_seconds` | fréquence de surveillance |
+| `successor_min_sol` / `successor_min_share` / `successor_max_age_days` | seuils de détection d'un changement d'adresse |
