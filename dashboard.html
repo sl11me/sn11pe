@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sn11pe live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // Thème choisi par l'utilisateur, appliqué avant le rendu pour éviter un flash ; clair par défaut.
+  try { if (localStorage.getItem("theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}
+</script>
+<style>
+  :root {
+    --bg:#ffffff; --panel:#ffffff; --soft:#f8fafd; --chip:#eff2f5; --line:#eff2f5; --line2:#e3e7ee; --text:#0d1421; --muted:#58667e; --dim:#a6b0c3;
+    --blue:#3861fb; --green:#16c784; --red:#ea3943; --yellow:#f0b90b; --orange:#f68819; --violet:#8b5cf6; --pink:#e84393; --steel:#7a869a;
+    --shadow:0 1px 2px rgba(88,102,126,.10), 0 4px 24px rgba(88,102,126,.08); --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+    color-scheme:light;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0d1421; --panel:#171924; --soft:#1a1d29; --chip:#222531; --line:#222531; --line2:#323546; --text:#ffffff; --muted:#a1a7bb; --dim:#616e85;
+    --shadow:none; color-scheme:dark;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding-bottom:44px; background:var(--bg); color:var(--text); font:14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  a { color:inherit; text-decoration:none; }
+  a:hover { color:var(--blue); }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  .num { font-variant-numeric:tabular-nums; }
+  .pos { color:var(--green); } .neg { color:var(--red); } .warn { color:var(--orange); } .muted { color:var(--muted); } .dim { color:var(--dim); }
+  .wrap { max-width:1440px; margin:0 auto; padding:0 24px; }
+  @media (max-width:640px) { .wrap { padding:0 16px; } }
+
+  /* Barre du haut */
+  header { position:sticky; top:0; z-index:10; background:var(--panel); border-bottom:1px solid var(--line); }
+  header .wrap { height:64px; display:flex; align-items:center; gap:20px; }
+  .brand { display:flex; align-items:center; gap:10px; font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
+  .logo { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background:var(--blue); color:#fff; font-size:15px; font-weight:800; }
+  .brand small { font-size:12px; font-weight:500; color:var(--muted); letter-spacing:0; }
+  .search { margin-left:auto; position:relative; }
+  .search input { width:260px; height:36px; padding:0 36px 0 12px; border:0; border-radius:8px; background:var(--chip); color:var(--text); font:inherit; font-size:13px; outline:none; }
+  .search input:focus { box-shadow:0 0 0 2px var(--blue); }
+  .search kbd { position:absolute; right:8px; top:8px; padding:0 6px; border-radius:4px; background:var(--dim); color:#fff; font:600 12px/20px Inter, sans-serif; }
+  .pill { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 12px; border-radius:8px; font-size:13px; font-weight:600; white-space:nowrap; }
+  .pill.paper { background:color-mix(in srgb, var(--blue) 12%, transparent); color:var(--blue); }
+  .pill.live { background:var(--red); color:#fff; }
+  .icon-btn { width:36px; height:36px; border:0; border-radius:8px; background:var(--chip); display:grid; place-items:center; font-size:16px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--dim); display:inline-block; flex:none; }
+  .dot.ok { background:var(--green); } .dot.slow { background:var(--yellow); } .dot.down { background:var(--red); }
+  @media (max-width:900px) { .brand small, .search kbd { display:none; } .search input { width:160px; } }
+  @media (max-width:560px) { .search { display:none; } .pill.paper, .pill.live { margin-left:auto; } }
+
+  /* Onglets */
+  .tabs { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--line); }
+  .tabs button { flex:none; border:0; background:none; padding:16px 16px 13px; font-size:18px; font-weight:500; color:var(--muted); border-bottom:3px solid transparent; }
+  .tabs button:hover { color:var(--text); }
+  .tabs button.on { color:var(--text); font-weight:700; border-bottom-color:var(--blue); }
+  @media (max-width:640px) { .tabs button { font-size:15px; padding:12px 10px 10px; } }
+  [data-view]:not(.show) { display:none !important; }
+
+  main { padding-top:16px; padding-bottom:24px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:16px; min-width:0; }
+  .card > h2 { margin:0 0 12px; font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .card > h2::after { content:"›"; color:var(--muted); font-weight:500; order:1; }
+  .card > h2 .hint { order:2; margin-left:auto; color:var(--muted); font-size:12px; font-weight:500; }
+  .card > h2 .filters { order:2; margin-left:auto; }
+
+  /* Rangée de widgets */
+  .widgets { display:grid; gap:16px; grid-template-columns:repeat(4, minmax(0, 1fr)); }
+  @media (max-width:1250px) { .widgets { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width:700px) { .widgets { grid-template-columns:minmax(0, 1fr); } }
+  .tile { border:1px solid var(--line2); border-radius:12px; padding:10px 12px; min-width:0; }
+  .tile .label { font-size:12px; color:var(--muted); font-weight:500; }
+  .tile .value { font-size:16px; font-weight:700; margin-top:2px; white-space:nowrap; }
+  .tile .value small { font-size:12px; font-weight:600; margin-left:4px; }
+  .perf { display:grid; gap:8px; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .perf .gauge-tile { grid-row:span 2; display:flex; flex-direction:column; }
+  .gauge { position:relative; width:120px; margin:auto auto 0; }
+  .gauge svg { width:120px; height:70px; display:block; }
+  .gauge .g-val { position:absolute; left:0; right:0; top:28px; text-align:center; font-size:20px; font-weight:800; }
+  .gauge .g-lab { display:block; width:max-content; margin:2px auto 0; padding:0 8px; border-radius:6px; font-size:11px; font-weight:600; color:#fff; }
+  .slider { position:relative; height:6px; border-radius:3px; background:var(--chip); margin-top:8px; }
+  .slider i { position:absolute; inset:0 auto 0 0; border-radius:3px; background:var(--blue); }
+  .rank { display:grid; gap:2px; }
+  .rank a, .rank .row { display:grid; grid-template-columns:18px 24px minmax(0, 1fr) auto; gap:8px; align-items:center; padding:7px 4px; border-radius:8px; }
+  .rank a:hover { background:var(--soft); color:inherit; }
+  .rank .i { color:var(--muted); font-size:13px; }
+  .rank .nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rank .rt { text-align:right; font-size:13px; font-weight:600; }
+  .rank .rt small { display:block; color:var(--muted); font-weight:500; font-size:11px; }
+  .bars { width:100%; height:64px; display:block; margin-top:8px; }
+  .act-head { display:flex; gap:20px; flex-wrap:wrap; }
+  .act-grid { display:grid; gap:8px; grid-template-columns:repeat(2, minmax(0, 1fr)); margin-top:8px; }
+  .pbar { height:4px; border-radius:2px; background:var(--chip); margin-top:5px; overflow:hidden; }
+  .pbar i { display:block; height:100%; border-radius:2px; }
+  .ico { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:10px; font-weight:700; color:#fff; flex:none; }
+  .off { opacity:.45; }
+
+  /* Pastilles des motifs de rejet */
+  .chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding:16px 0 4px; }
+  .chips button { flex:none; display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px 0 6px; border:1px solid var(--line2); border-radius:999px; background:var(--panel); font-size:13px; font-weight:500; }
+  .chips button:hover { border-color:var(--blue); }
+  .chips .badge { padding:1px 8px; border-radius:999px; color:#fff; font-size:11px; font-weight:700; }
+  .chips .lead { padding-left:12px; color:var(--muted); border-style:dashed; }
+
+  /* Barre d'outils du tableau */
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:12px 0; }
+  .seg { height:32px; padding:0 12px; border:0; border-radius:8px; background:none; color:var(--text); font-size:13px; font-weight:500; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .seg:hover { background:var(--soft); }
+  .seg.on { background:color-mix(in srgb, var(--blue) 10%, transparent); color:var(--blue); font-weight:600; }
+  .toolbar .right { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+  .toolbar .right .seg { background:var(--chip); font-weight:600; }
+  .toolbar .right .seg.on { background:var(--blue); color:#fff; }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:50%; flex:none; }
+
+  /* Tableaux */
+  .tablewrap { overflow-x:auto; }
+  .scroll { max-height:460px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; font-size:12px; font-weight:700; padding:12px 10px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); white-space:nowrap; background:var(--panel); position:sticky; top:0; z-index:1; }
+  td { padding:14px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  tbody tr:hover td { background:var(--soft); }
+  .r { text-align:right; }
+  .c-rank { width:36px; color:var(--muted); text-align:center; }
+  .usd { display:block; color:var(--muted); font-size:12px; }
+  .tok { display:inline-flex; align-items:center; gap:10px; max-width:320px; }
+  .tok .nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+  .tok .sym { color:var(--muted); margin-left:6px; font-weight:500; }
+  .tok .mint { display:block; color:var(--dim); font-size:11px; font-family:var(--mono); }
+  .tag { display:inline-block; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; max-width:260px; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+  .chip { display:inline-flex; align-items:center; gap:6px; }
+  .empty { padding:32px 0; text-align:center; color:var(--muted); }
+  .chg::before { font-size:10px; margin-right:3px; }
+  .chg.pos::before { content:"▲"; } .chg.neg::before { content:"▼"; }
+
+  /* Vues secondaires */
+  .grid2 { display:grid; gap:16px; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); align-items:start; }
+  .stackv { display:grid; gap:16px; }
+  @media (max-width:1000px) { .grid2 { grid-template-columns:minmax(0, 1fr); } }
+  .kpis { display:grid; gap:16px; grid-template-columns:repeat(4, minmax(0, 1fr)); }
+  @media (max-width:900px) { .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  .kpis .tile { background:var(--panel); }
+  .kpis .value { font-size:22px; }
+  .stack { display:flex; height:10px; border-radius:5px; overflow:hidden; background:var(--chip); margin-bottom:12px; }
+  .stack i { display:block; height:100%; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-bottom:16px; font-size:13px; color:var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .legend b { color:var(--text); }
+  .reasons { display:grid; }
+  .reason { display:grid; grid-template-columns:minmax(0, 1fr) 60px; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .reason:last-child { border-bottom:0; }
+  .reason .t { font-weight:600; display:flex; align-items:center; gap:8px; }
+  .reason .why { color:var(--muted); font-size:13px; margin-top:2px; }
+  .reason .n { text-align:right; font-weight:700; }
+  .reason .pbar { margin-top:8px; }
+  .rules { display:grid; }
+  .rules div { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
+  .rules div:last-child { border-bottom:0; }
+  .rules b { color:var(--text); }
+  .term { background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:12px 14px; max-height:620px; overflow:auto; }
+  .term pre { margin:0; white-space:pre-wrap; word-break:break-word; font:12px/1.7 var(--mono); color:var(--muted); }
+  .report { max-height:none; font-size:14px; line-height:1.7; }
+  .report h3 { font-size:17px; margin:24px 0 8px; padding-top:16px; border-top:1px solid var(--line); }
+  .report h3:first-child { margin-top:0; padding-top:0; border:0; }
+  .report h4 { font-size:14px; margin:16px 0 6px; color:var(--blue); }
+  .report p, .report ul { margin:6px 0; }
+  .report ul { padding-left:20px; }
+  .report code { background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+
+  /* Barre d'état en bas */
+  footer { position:fixed; left:0; right:0; bottom:0; z-index:10; background:var(--panel); border-top:1px solid var(--line); }
+  footer .wrap { height:36px; display:flex; align-items:center; gap:18px; overflow-x:auto; scrollbar-width:none; font-size:12px; color:var(--muted); white-space:nowrap; }
+  footer b { color:var(--blue); font-weight:600; }
+  footer span { display:inline-flex; align-items:center; gap:6px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="logo" aria-hidden="true">S</span>sn11pe <small>copy-trading memecoins Solana</small></div>
+    <label class="search"><input id="q" type="search" placeholder="Rechercher un token, un wallet…" aria-label="Rechercher un token ou un wallet" autocomplete="off"><kbd>/</kbd></label>
+    <span id="mode" class="pill">…</span>
+    <button class="icon-btn" id="theme" type="button" aria-label="Basculer le thème clair ou sombre">◐</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-tab="overview" class="on">Vue d'ensemble</button>
+    <button data-tab="wallets">Wallets suivis</button>
+    <button data-tab="trades">Positions et trades</button>
+    <button data-tab="logs">Journal</button>
+  </nav>
+</div>
+
+<main class="wrap">
+  <!-- Vue d'ensemble -->
+  <div class="widgets" data-view="overview">
+    <section class="card"><h2>Performance</h2><div class="perf" id="perf"></div></section>
+    <section class="card"><h2>Positions ouvertes <span class="hint" id="openHint"></span></h2><div class="rank" id="openList"></div></section>
+    <section class="card"><h2>Signaux des leaders <span class="hint">dernière heure</span></h2><div id="activity"></div></section>
+    <section class="card"><h2>Meilleurs wallets <span class="hint">PnL copié</span></h2><div class="rank" id="topWallets"></div></section>
+  </div>
+
+  <div data-view="overview">
+    <div class="toolbar">
+      <b>Flux des signaux</b>
+      <div class="right" id="filters">
+        <button class="seg on" data-f="all">Tous</button><button class="seg" data-f="buy">Copiés</button><button class="seg" data-f="sell">Ventes</button><button class="seg" data-f="skip">Ignorés</button><button class="seg" data-f="error">Erreurs</button>
+      </div>
+    </div>
+    <div class="tablewrap" id="events"></div>
+  </div>
+
+  <!-- Wallets suivis -->
+  <div class="grid2" data-view="wallets">
+    <section class="card"><h2>Classement des wallets <span class="hint" id="walletsHint"></span></h2><div class="tablewrap" id="wallets"></div></section>
+    <section class="card"><h2>Règles actives</h2><div class="rules" id="rules"></div></section>
+  </div>
+
+  <!-- Positions et trades -->
+  <div class="stackv" data-view="trades">
+    <div class="kpis" id="tradeKpis"></div>
+    <section class="card"><h2>Positions ouvertes <span class="hint" id="openHint2"></span></h2><div class="tablewrap" id="open"></div></section>
+    <section class="card"><h2>Historique des trades <span class="hint" id="closedHint"></span></h2><div class="tablewrap scroll" id="closed"></div></section>
+  </div>
+
+  <!-- Journal -->
+  <section class="card" data-view="logs">
+    <h2>Journal du bot <span class="hint">300 dernières lignes</span></h2>
+    <div class="term"><pre id="logs"></pre></div>
+  </section>
+</main>
+
+<footer><div class="wrap" id="statusbar"></div></footer>
+
+<script>
+// Symboles de tokens et erreurs viennent de l'extérieur : tout texte passe par esc().
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const $ = (id) => document.getElementById(id);
+const nf = (n, d) => Number(n).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (n, d = 4) => (n == null ? "—" : nf(n, d));
+const signed = (n, d = 4) => n == null ? "—" : `<span class="${n >= 0 ? "pos" : "neg"}">${n >= 0 ? "+" : "−"}${nf(Math.abs(n), d)}</span>`;
+const chg = (n, d = 2) => n == null ? '<span class="dim">—</span>' : `<span class="chg ${n >= 0 ? "pos" : "neg"}">${nf(Math.abs(n), d)}%</span>`;
+const time = (s) => new Date(s * 1000).toLocaleTimeString("fr-FR");
+const ago = (s) => (s < 60 ? `${Math.round(s)} s` : s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`);
+const usd = (n) => n.toLocaleString("fr-FR", { style: "currency", currency: "USD", notation: Math.abs(n) >= 10_000 ? "compact" : "standard", maximumFractionDigits: Math.abs(n) >= 10_000 ? 1 : 2 });
+const short = (a) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+const table = (head, rows, empty = "Rien pour l'instant.") => rows.length
+  ? `<table><thead><tr>${head.map((h) => `<th class="${h.endsWith(" ") ? "r" : h === "#" ? "c-rank" : ""}">${h.trim()}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`
+  : `<div class="empty">${empty}</div>`;
+
+// Couleur stable par adresse (avatar), dérivée de l'adresse et pas du nom.
+const hue = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const avatar = (addr, label) => `<span class="ico" style="background:hsl(${hue(addr)} 60% 50%)">${esc((label || "?").slice(0, 2).toUpperCase())}</span>`;
+const token = (mint, symbol) => `<a class="tok" href="https://solscan.io/token/${encodeURIComponent(mint)}" target="_blank" rel="noopener noreferrer">${avatar(mint, symbol)}
+  <span style="min-width:0"><span class="nm">${esc(symbol || short(mint))}</span><span class="mint">${esc(short(mint))}</span></span></a>`;
+const wallet = (w) => `<a class="tok" href="https://solscan.io/account/${encodeURIComponent(w)}" target="_blank" rel="noopener noreferrer">${avatar(w, w)}
+  <span style="min-width:0"><span class="nm" style="font-family:var(--mono);font-weight:500">${esc(short(w))}</span></span></a>`;
+
+// Décisions du bot sur un signal, lisibles d'un coup d'œil.
+const CATS = {
+  buy: { label: "Copiés", color: "var(--green)" },
+  sell: { label: "Ventes", color: "var(--blue)" },
+  skip: { label: "Ignorés", color: "var(--steel)" },
+  off: { label: "Wallet coupé", color: "var(--orange)" },
+  error: { label: "Erreurs", color: "var(--red)" },
+};
+const category = (d = "") => d === "copié" ? "buy" : d === "vendu" ? "sell" : d === "wallet désactivé" ? "off" : d.startsWith("erreur") ? "error" : "skip";
+const EXPLAIN = {
+  "copié": ["Copié", "Le leader a acheté : sn11pe a pris la même position."],
+  "vendu": ["Vendu avec le leader", "Le leader a vendu : sn11pe a soldé sa position copiée."],
+  "déjà en position": ["Déjà en position", "On détient déjà ce token, pas de second achat."],
+  "capacité max": ["Toutes les places prises", "Le nombre maximum de positions ouvertes est atteint."],
+  "wallet désactivé": ["Wallet coupé", "Ce wallet nous a fait perdre sur ses trades copiés : ses signaux sont ignorés."],
+  "pas de position": ["Vente non suivie", "Le leader vend un token qu'on n'a pas copié."],
+};
+const EXITS = [
+  [/^leader_sold/, "Leader a vendu", "var(--blue)"], [/^take_profit/, "Take profit", "var(--green)"],
+  [/^stop_loss/, "Stop loss", "var(--red)"], [/^timeout/, "Durée max", "var(--steel)"],
+];
+const pill = (text, color, title = "") => `<span class="tag" title="${esc(title)}" style="color:${color};background:color-mix(in srgb, ${color} 14%, transparent)">${esc(text)}</span>`;
+const decisionTag = (d) => { const [t, why] = EXPLAIN[d] ?? ["Erreur technique", d]; return pill(t, CATS[category(d)].color, why); };
+const exitTag = (r = "") => { const e = EXITS.find(([re]) => re.test(r)) ?? [0, r, "var(--dim)"]; return pill(e[1], e[2], r); };
+
+// Jauge demi-cercle en 5 segments (rouge → vert), le point marque la valeur.
+function gauge(pct) {
+  const colors = ["var(--red)", "var(--orange)", "var(--yellow)", "#93d900", "var(--green)"];
+  const pt = (a, r = 48) => [60 - r * Math.cos(a), 60 - r * Math.sin(a)].map((v) => v.toFixed(1));
+  const arcs = colors.map((c, i) => {
+    const a0 = (i / 5) * Math.PI + 0.06, a1 = ((i + 1) / 5) * Math.PI - 0.06;
+    return `<path d="M${pt(a0)} A48,48 0 0 1 ${pt(a1)}" stroke="${c}" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+  }).join("");
+  const [cx, cy] = pt(((pct ?? 0) / 100) * Math.PI);
+  const dot = pct == null ? "" : `<circle cx="${cx}" cy="${cy}" r="6" fill="var(--panel)" stroke="var(--text)" stroke-width="3"/>`;
+  const lab = pct == null ? ["—", "var(--dim)"] : pct < 20 ? ["Très faible", "var(--red)"] : pct < 40 ? ["Faible", "var(--orange)"] : pct < 60 ? ["Moyen", "var(--yellow)"] : pct < 80 ? ["Bon", "#7bc000"] : ["Excellent", "var(--green)"];
+  return `<div class="gauge"><svg viewBox="0 0 120 70" aria-hidden="true">${arcs}${dot}</svg><div class="g-val num">${pct == null ? "—" : Math.round(pct)}</div><span class="g-lab" style="background:${lab[1]}">${lab[0]}</span></div>`;
+}
+
+let filter = "all", query = "", last;
+
+function render(s) {
+  const r = s.rules;
+  $("mode").className = `pill ${s.mode}`;
+  $("mode").textContent = s.mode === "live" ? "● LIVE · argent réel" : "PAPER · simulation";
+  const solUsd = (v) => (s.solUsd && v != null ? usd(v * s.solUsd) : "");
+  const tile = (label, value, extra = "", cls = "") => `<div class="tile ${cls}"><div class="label">${label}</div><div class="value num">${value}</div>${extra}</div>`;
+
+  const realized = s.closed.reduce((a, c) => a + (c.proceeds - c.cost), 0);
+  const wins = s.closed.filter((c) => c.proceeds > c.cost).length, trades = s.closed.length;
+  const winRate = trades ? (wins / trades) * 100 : null;
+  const unrealized = s.open.reduce((a, p) => a + (p.value - p.cost), 0);
+  const active = s.wallets.filter((w) => w.on).length;
+
+  // Widget Performance
+  $("perf").innerHTML = [
+    `<div class="tile gauge-tile"><div class="label">Taux de réussite</div>${gauge(winRate)}</div>`,
+    tile("PnL réalisé", `${signed(realized, 3)} <small class="muted">SOL</small>`, `<div class="usd">${solUsd(realized)} · ${trades} trade${trades > 1 ? "s" : ""}</div>`),
+    tile("PnL latent", s.open.length ? `${signed(unrealized, 3)} <small class="muted">SOL</small>` : '<span class="dim">—</span>', `<div class="usd">${s.open.length ? solUsd(unrealized) : "aucune position"}</div>`),
+    tile("Positions", `${s.open.length}<span class="dim"> / ${r.max_positions}</span>`, `<div class="slider"><i style="width:${(s.open.length / r.max_positions) * 100}%"></i></div>`),
+    tile("Wallets actifs", `${active}<span class="dim"> / ${s.wallets.length}</span>`, `<div class="usd">${r.buy_sol} SOL par copie</div>`),
+  ].join("");
+
+  // Widget Positions ouvertes (classement par PnL)
+  const open = s.open.map((p) => ({ ...p, pnl: ((p.value - p.cost) / p.cost) * 100 })).sort((a, b) => b.pnl - a.pnl);
+  $("openHint").textContent = `${s.open.length} / ${r.max_positions}`;
+  $("openList").innerHTML = open.length ? open.map((p, i) =>
+    `<a href="https://solscan.io/token/${encodeURIComponent(p.mint)}" target="_blank" rel="noopener noreferrer"><span class="i">${i + 1}</span>${avatar(p.mint, p.symbol)}<span class="nm">${esc(p.symbol || short(p.mint))}</span><span class="rt num">${chg(p.pnl, 1)}<small>${ago(s.now - p.opened)} · ${fmt(p.value, 3)} SOL</small></span></a>`).join("")
+    : `<div class="empty">Aucune position.<br><span class="dim">sn11pe attend un achat d'un wallet suivi.</span></div>`;
+
+  // Widget Signaux : barres par minute sur l'heure écoulée
+  const nowMin = Math.floor(s.now / 60);
+  const hour = s.events.filter((e) => s.now - e.at < 3600);
+  const counts = Array.from({ length: 60 }, (_, i) => hour.filter((e) => Math.floor(e.at / 60) === nowMin - 59 + i).length);
+  const max = Math.max(1, ...counts), W = 600, H = 64, bw = W / 60;
+  const bars = counts.map((n, i) => `<rect x="${(i * bw + 1).toFixed(1)}" y="${(H - Math.max(2, (n / max) * H)).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${Math.max(2, (n / max) * H).toFixed(1)}" rx="1.5" fill="${n === max && n ? "var(--blue)" : "color-mix(in srgb, var(--blue) 45%, transparent)"}"><title>il y a ${59 - i} min · ${n} signal${n > 1 ? "s" : ""}</title></rect>`).join("");
+  const silent = s.events.length ? s.now - s.events[0].at : null;
+  $("activity").innerHTML = `
+    <div class="tile"><div class="act-head">
+      <div><div class="label">Signaux</div><div class="value num">${hour.length}</div></div>
+      <div><div class="label">Copiés</div><div class="value num pos">${hour.filter((e) => e.decision === "copié").length}</div></div>
+      <div><div class="label">Ventes</div><div class="value num">${hour.filter((e) => e.side === "sell").length}</div></div>
+    </div><svg class="bars" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Signaux des leaders par minute sur 60 minutes">${bars}</svg></div>
+    <div class="act-grid">
+      ${tile("Dernier signal", silent == null ? '<span class="dim">—</span>' : `il y a ${ago(silent)}`)}
+      ${tile("Surveillance", `toutes les ${r.poll_seconds} s`)}
+    </div>`;
+
+  // Widget Meilleurs wallets
+  const ranked = [...s.wallets].sort((a, b) => b.pnl - a.pnl || b.trades - a.trades);
+  const pmax = Math.max(1e-9, ...ranked.map((w) => Math.abs(w.pnl)));
+  $("topWallets").innerHTML = ranked.length ? ranked.slice(0, 6).map((w, i) =>
+    `<a class="${w.on ? "" : "off"}" href="https://solscan.io/account/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener noreferrer"><span class="i">${i + 1}</span>${avatar(w.wallet, w.wallet)}
+      <div style="min-width:0"><div class="nm" style="font-family:var(--mono);font-weight:500">${esc(short(w.wallet))}${w.on ? "" : ' <span class="dim">· coupé</span>'}</div><div class="pbar"><i style="width:${(Math.abs(w.pnl) / pmax) * 100}%;background:${w.pnl >= 0 ? "var(--green)" : "var(--red)"}"></i></div></div>
+      <span class="rt num">${signed(w.pnl, 3)}<small>${w.trades} trade${w.trades > 1 ? "s" : ""} · ${Math.round(w.winrate * 100)} %</small></span></a>`).join("")
+    : `<div class="empty">Aucun wallet dans config.json.</div>`;
+
+  // Tableau principal : flux des signaux
+  const q = query.trim().toLowerCase();
+  const rows = s.events.filter((e) => (filter === "all" || (filter === "skip" ? ["skip", "off"].includes(category(e.decision)) : category(e.decision) === filter))
+    && (!q || [e.symbol, e.mint, e.wallet].some((v) => String(v ?? "").toLowerCase().includes(q))));
+  $("events").innerHTML = table(["#", "Token", "Wallet leader", "Action", "Décision", "Transaction", "Heure "], rows.map((e, i) =>
+    `<tr><td class="c-rank num">${i + 1}</td><td>${token(e.mint, e.symbol)}</td><td>${wallet(e.wallet)}</td><td>${e.side === "buy" ? '<b class="pos">Achat</b>' : '<b class="neg">Vente</b>'}</td><td>${decisionTag(e.decision)}</td>
+      <td><a class="muted" style="font-family:var(--mono);font-size:12px" href="https://solscan.io/tx/${encodeURIComponent(e.sig)}" target="_blank" rel="noopener noreferrer">${esc(e.sig.slice(0, 8))}… ↗</a></td><td class="r num muted">${time(e.at)}</td></tr>`),
+    q ? "Aucun signal ne correspond à la recherche." : s.events.length ? "Aucun signal dans cette catégorie." : "Aucun signal depuis le démarrage : les wallets suivis n'ont rien acheté ni vendu.");
+
+  // Vue Wallets suivis
+  $("walletsHint").textContent = `${active} actif${active > 1 ? "s" : ""} sur ${s.wallets.length}`;
+  $("wallets").innerHTML = table(["#", "Wallet", "Statut", "Trades ", "Réussite ", "PnL copié ", "Positions ", "Dernier signal "], ranked.map((w, i) =>
+    `<tr class="${w.on ? "" : "off"}"><td class="c-rank num">${i + 1}</td><td>${wallet(w.wallet)}</td>
+      <td>${w.on ? pill("Actif", "var(--green)", w.trades < r.min_trades_to_judge ? `En observation : jugé après ${r.min_trades_to_judge} trades` : "Rentable : on continue à copier") : pill("Coupé", "var(--orange)", "PnL négatif ou taux de réussite trop bas : signaux ignorés")}</td>
+      <td class="r num">${w.trades}<span class="usd">${w.trades < r.min_trades_to_judge ? `jugé à ${r.min_trades_to_judge}` : "jugé"}</span></td>
+      <td class="r num">${w.trades ? `${Math.round(w.winrate * 100)} %` : '<span class="dim">—</span>'}</td>
+      <td class="r num"><b>${signed(w.pnl, 4)}</b> SOL<span class="usd">${solUsd(w.pnl)}</span></td>
+      <td class="r num">${w.open}</td><td class="r num muted">${w.lastSignal ? `il y a ${ago(s.now - w.lastSignal)}` : "—"}</td></tr>`), "Ajoute des wallets dans config.json.");
+  const rule = (k, v) => `<div>${k} <b class="num">${v}</b></div>`;
+  $("rules").innerHTML = [
+    rule("Mise par copie", `${r.buy_sol} SOL`), rule("Positions max", r.max_positions), rule("Slippage max", `${r.slippage_bps / 100} %`),
+    rule("Take profit", `×${r.take_profit}`), rule("Stop loss", `×${r.stop_loss} (−${Math.round((1 - r.stop_loss) * 100)} %)`),
+    rule("Durée max", `${r.max_hold_min} min`), rule("Wallet jugé après", `${r.min_trades_to_judge} trades`),
+    rule("Réussite min", `${Math.round(r.min_winrate * 100)} %`), rule("Surveillance", `toutes les ${r.poll_seconds} s`),
+  ].join("");
+
+  // Vue Positions et trades
+  $("tradeKpis").innerHTML = [
+    tile("PnL réalisé", `${signed(realized, 4)} <small class="muted">SOL</small>`, `<div class="usd">${solUsd(realized)}</div>`),
+    tile("PnL latent", s.open.length ? `${signed(unrealized, 4)} <small class="muted">SOL</small>` : '<span class="dim">—</span>', `<div class="usd">${s.open.length} position${s.open.length > 1 ? "s" : ""} ouverte${s.open.length > 1 ? "s" : ""}</div>`),
+    tile("Taux de réussite", winRate == null ? '<span class="dim">—</span>' : `${Math.round(winRate)} %`, `<div class="usd">${wins} gagnant${wins > 1 ? "s" : ""} sur ${trades}</div>`),
+    tile("Trades fermés", trades, `<div class="usd">${r.buy_sol} SOL par position</div>`),
+  ].join("");
+  $("openHint2").textContent = `${s.open.length} sur ${r.max_positions}`;
+  $("open").innerHTML = table(["#", "Token", "Copié de", "Mise ", "Valeur ", "PnL % ", "Plus haut ", "Tenue "], open.map((p, i) =>
+    `<tr><td class="c-rank num">${i + 1}</td><td>${token(p.mint, p.symbol)}</td><td>${wallet(p.wallet)}</td><td class="r num">${fmt(p.cost)} SOL</td><td class="r num">${fmt(p.value)} SOL<span class="usd">${solUsd(p.value)}</span></td>
+      <td class="r num"><b>${chg(p.pnl, 1)}</b></td><td class="r num">${chg(((p.peak - p.cost) / p.cost) * 100, 1)}</td><td class="r num">${ago(s.now - p.opened)}<span class="usd">sur ${r.max_hold_min} min</span></td></tr>`),
+    "Aucune position : sn11pe attend un achat d'un wallet suivi.");
+  $("closedHint").innerHTML = trades ? `${trades} derniers · ${signed(realized)} SOL` : "";
+  $("closed").innerHTML = table(["#", "Token", "Copié de", "PnL ", "PnL % ", "Durée ", "Sortie", "Fermé "], s.closed.map((c, i) =>
+    `<tr><td class="c-rank num">${i + 1}</td><td>${token(c.mint, c.symbol)}</td><td>${wallet(c.wallet)}</td><td class="r num">${signed(c.proceeds - c.cost)} SOL</td>
+      <td class="r num"><b>${chg(((c.proceeds - c.cost) / c.cost) * 100, 1)}</b></td><td class="r num">${c.opened ? ago(c.closed - c.opened) : "—"}</td><td>${exitTag(c.reason)}</td><td class="r num muted">${time(c.closed)}</td></tr>`),
+    "Aucun trade fermé pour l'instant.");
+
+  // Journal
+  const box = $("logs").parentElement, atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+  $("logs").innerHTML = s.logs.map((l) => `<span class="${/\[err\]/i.test(l) ? "neg" : /\[buy\]/.test(l) ? "pos" : /\[sell\]/.test(l) ? "warn" : ""}">${esc(l)}</span>`).join("\n");
+  if (atBottom) box.scrollTop = box.scrollHeight;
+
+  // Barre d'état
+  const fresh = s.now - s.updated < r.poll_seconds * 3;
+  $("statusbar").innerHTML = [
+    `<span><span class="dot ${fresh ? "ok" : "slow"}"></span>Bot : <b>${fresh ? "actif" : "en attente"}</b></span>`,
+    `<span>Wallets : <b class="num">${active}/${s.wallets.length}</b></span>`,
+    `<span>Signaux (1 h) : <b class="num">${hour.length}</b></span>`,
+    `<span>Positions : <b class="num">${s.open.length}/${r.max_positions}</b></span>`,
+    `<span>PnL réalisé : ${signed(realized, 3)} SOL</span>`,
+    `<span>SOL : <b class="num">${s.solUsd ? usd(s.solUsd) : "—"}</b></span>`,
+    `<span>Mode : <b>${s.mode === "live" ? "LIVE" : "PAPER"}</b></span>`,
+    `<span>En ligne depuis <b>${ago(s.now - s.startedAt)}</b></span>`,
+  ].join("");
+}
+
+async function refresh() {
+  let s;
+  try { s = await (await fetch("api/state")).json(); } catch {
+    $("statusbar").innerHTML = `<span><span class="dot down"></span>Bot injoignable</span>`;
+    return;
+  }
+  if (!s.rules) return; // le bot démarre, premier état pas encore publié
+  last = { ...s, updated: s.now, now: Date.now() / 1000 };
+  render(last);
+}
+
+// Onglets : la vue active vit dans l'URL (#wallets…) pour pouvoir partager un lien.
+const VIEWS = ["overview", "wallets", "trades", "logs"];
+function show(view) {
+  if (!VIEWS.includes(view)) view = "overview";
+  document.querySelectorAll("[data-view]").forEach((el) => el.classList.toggle("show", el.dataset.view === view));
+  $("tabs").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.tab === view));
+}
+$("tabs").addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) location.hash = t.dataset.tab; });
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+
+$("filters").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-f]");
+  if (!b) return;
+  filter = b.dataset.f;
+  $("filters").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  if (last) render(last);
+});
+$("q").addEventListener("input", (e) => {
+  query = e.target.value;
+  if (location.hash && location.hash !== "#overview") location.hash = "overview";
+  if (last) render(last);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== $("q")) { e.preventDefault(); $("q").focus(); }
+});
+$("theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+  try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
+});
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

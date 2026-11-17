@@ -15,6 +15,14 @@ python3 -m unittest                   # tests
 Variables d'env optionnelles : `RPC_URL` (un RPC privé type Helius est fortement conseillé, le public est lent et limité),
 `JUP_API_KEY` (https://developers.jup.ag/portal).
 
+## Tableau de bord
+
+Le bot sert une page temps réel sur http://localhost:8081 (`DASHBOARD_PORT`, 0 pour la couper), même design que Brigitte (BotToFun) :
+performance et taux de réussite, positions ouvertes avec PnL latent, flux des signaux des leaders et décision prise,
+classement des wallets (actif / coupé), historique des trades, journal. La page ne montre jamais la clé privée ni l'URL RPC.
+
+Sur un VPS, rien n'est exposé sur internet : `ssh -L 8081:localhost:8081 <vps>` puis ouvrir http://localhost:8081.
+
 ## Mode réel
 
 ```bash
