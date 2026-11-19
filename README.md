@@ -3,6 +3,11 @@
 Bot de copy-trading de wallets memecoins sur Solana. Il surveille des wallets « leaders »,
 copie leurs achats via Jupiter (Swap API V2) et sort quand le leader vend, ou sur take-profit / stop-loss / timeout.
 
+> **Avertissement** : projet personnel à but éducatif, pas un conseil financier. Les memecoins sont extrêmement volatils ;
+> le mode réel peut faire perdre la totalité des fonds engagés. Utilisation à vos risques.
+
+![Tableau de bord (données de démonstration)](docs/dashboard.png)
+
 ## Démarrage (paper trading, aucun vrai ordre)
 
 ```bash
@@ -17,7 +22,7 @@ Variables d'env optionnelles : `RPC_URL` (un RPC privé type Helius est fortemen
 
 ## Tableau de bord
 
-Le bot sert une page temps réel sur http://localhost:8081 (`DASHBOARD_PORT`, 0 pour la couper), même design que Brigitte (BotToFun) :
+Le bot sert une page temps réel sur http://localhost:8081 (`DASHBOARD_PORT`, 0 pour la couper) :
 performance et taux de réussite, positions ouvertes avec PnL latent, flux des signaux des leaders et décision prise,
 classement des wallets (actif / coupé), historique des trades, journal. La page ne montre jamais la clé privée ni l'URL RPC.
 
@@ -56,3 +61,7 @@ Pour le copier, ajoute son adresse dans `config.json`. Un passage par un exchang
 | `max_hold_min` | durée max d'une position |
 | `poll_seconds` | fréquence de surveillance |
 | `successor_min_sol` / `successor_min_share` / `successor_max_age_days` | seuils de détection d'un changement d'adresse |
+
+## Licence
+
+[MIT](LICENSE)

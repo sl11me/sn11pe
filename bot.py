@@ -11,7 +11,7 @@ RPC = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
 JUP = "https://api.jup.ag"
 JUP_KEY = os.getenv("JUP_API_KEY", "")
 LIVE = os.getenv("LIVE") == "1"
-DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8081"))  # 8080 = Brigitte ; 0 coupe la page
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8081"))  # 0 coupe la page
 SOL = "So11111111111111111111111111111111111111112"
 IGNORED = {  # stables : pas des memecoins
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
@@ -229,7 +229,7 @@ def poll_wallet(state, cfg, wallet, watch=False):
     for s in reversed(sigs):
         if s.get("err"):
             continue
-        tx = rpc("getTransaction", s["signature"], {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0})
+        tx = rpc("getTransaction", s["signature"], {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1})
         check_successors(state, cfg, wallet, tx, s["signature"])
         for side, mint in parse_swaps(tx, wallet):
             try:
